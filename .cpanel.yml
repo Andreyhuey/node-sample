@@ -1,8 +1,8 @@
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/andreyhu/sample.andreyhuey.dev
-    - export NODEVENV=/home/andreyhu/nodevenv/sample.andreyhuey.dev/22
+    - export DEPLOYPATH=/home/andreyhu/sample.andreyhuey.dev/repo
+    - export NODEVENV=/home/andreyhu/nodevenv/sample.andreyhuey.dev/repo/22
     - . $NODEVENV/bin/activate
     - npm ci
     - npm run build
