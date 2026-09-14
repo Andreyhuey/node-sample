@@ -1,0 +1,10 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/andreyhu/sample.andreyhuey.dev
+    - /bin/mkdir -p $DEPLOYPATH/dist
+    - /bin/cp -R dist/. $DEPLOYPATH/dist/
+    - /bin/cp package.json $DEPLOYPATH/
+    - /bin/cp package-lock.json $DEPLOYPATH/
+    - /bin/mkdir -p $DEPLOYPATH/tmp
+    - /bin/touch $DEPLOYPATH/tmp/restart.txt
