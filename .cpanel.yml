@@ -1,6 +1,8 @@
 deployment:
   tasks:
     - export DEPLOYPATH=/home/andreyhu/sample.andreyhuey.dev/repo
+    - export NODEVENV=/home/andreyhu/nodevenv/sample.andreyhuey.dev/repo/22
+    - . $NODEVENV/bin/activate
     - npm install
     - npm run build
     - /bin/mkdir -p $DEPLOYPATH/dist
