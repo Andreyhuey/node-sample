@@ -143,6 +143,7 @@ export async function createUserAccount(values: {
   password: string;
   role: User['role'];
   doctorId?: string;
+  patientId?: string;
 }): Promise<PublicUser> {
   const [user] = await db
     .insert(users)

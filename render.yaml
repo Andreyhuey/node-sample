@@ -1,0 +1,21 @@
+# Render Blueprint. First deploy: see docs/deploy.md.
+services:
+  - type: web
+    name: clinic-api
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    # The free plan has no pre-deploy step, so migrations run just before
+    # the server starts. Safe with a single instance.
+    dockerCommand: sh -c "node dist/release.js && node dist/index.js"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SEED_DEMO
+        value: 'true'
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false # paste the Neon connection string in the dashboard
+      - key: CORS_ORIGINS
+        sync: false
