@@ -1,39 +1,59 @@
 import { Router } from 'express';
+import { validated } from '../../middleware/validated';
 import { idParam } from '../params';
 import { listPrescriptionsForPatient } from '../prescriptions/prescriptions.service';
-import { createPatientSchema, updatePatientSchema } from './patients.schemas';
+import {
+  createPatientSchema,
+  listPatientsQuery,
+  updatePatientSchema,
+} from './patients.schemas';
 import * as service from './patients.service';
 
 export const patientsRouter = Router();
 
-patientsRouter.get('/', async (_req, res) => {
-  res.json(await service.listPatients());
-});
+patientsRouter.get(
+  '/',
+  validated({ query: listPatientsQuery }, async ({ query }, res) => {
+    res.json(await service.listPatients(query));
+  }),
+);
 
-patientsRouter.post('/', async (req, res) => {
-  const input = createPatientSchema.parse(req.body);
-  res.status(201).json(await service.createPatient(input));
-});
+patientsRouter.post(
+  '/',
+  validated({ body: createPatientSchema }, async ({ body }, res) => {
+    res.status(201).json(await service.createPatient(body));
+  }),
+);
 
-patientsRouter.get('/:id', async (req, res) => {
-  const { id } = idParam.parse(req.params);
-  res.json(await service.getPatient(id));
-});
+patientsRouter.get(
+  '/:id',
+  validated({ params: idParam }, async ({ params }, res) => {
+    res.json(await service.getPatient(params.id));
+  }),
+);
 
-patientsRouter.patch('/:id', async (req, res) => {
-  const { id } = idParam.parse(req.params);
-  const input = updatePatientSchema.parse(req.body);
-  res.json(await service.updatePatient(id, input));
-});
+patientsRouter.patch(
+  '/:id',
+  validated(
+    { params: idParam, body: updatePatientSchema },
+    async ({ params, body }, res) => {
+      res.json(await service.updatePatient(params.id, body));
+    },
+  ),
+);
 
-patientsRouter.delete('/:id', async (req, res) => {
-  const { id } = idParam.parse(req.params);
-  await service.deletePatient(id);
-  res.status(204).end();
-});
+patientsRouter.delete(
+  '/:id',
+  validated({ params: idParam }, async ({ params }, res) => {
+    await service.deletePatient(params.id);
+    res.status(204).end();
+  }),
+);
 
-patientsRouter.get('/:id/prescriptions', async (req, res) => {
-  const { id } = idParam.parse(req.params);
-  await service.getPatient(id); // 404 if the patient doesn't exist
-  res.json(await listPrescriptionsForPatient(id));
-});
+patientsRouter.get(
+  '/:id/prescriptions',
+  validated({ params: idParam }, async ({ params }, res) => {
+    await service.getPatient(params.id); // 404 if the patient doesn't exist
+    res.json(await listPrescriptionsForPatient(params.id));
+  }),
+);

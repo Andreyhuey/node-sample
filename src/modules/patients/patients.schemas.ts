@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { paginationQuery } from '../pagination';
 
 export const createPatientSchema = z.object({
   firstName: z.string().trim().min(1),
@@ -12,3 +13,10 @@ export const updatePatientSchema = createPatientSchema.partial();
 
 export type CreatePatientInput = z.infer<typeof createPatientSchema>;
 export type UpdatePatientInput = z.infer<typeof updatePatientSchema>;
+
+export const listPatientsQuery = paginationQuery.extend({
+  // Matches first name, last name or email, case-insensitively.
+  q: z.string().trim().min(1).optional(),
+});
+
+export type ListPatientsQuery = z.infer<typeof listPatientsQuery>;

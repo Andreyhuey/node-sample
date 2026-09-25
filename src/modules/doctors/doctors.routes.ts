@@ -1,26 +1,42 @@
 import { Router } from 'express';
+import { validated } from '../../middleware/validated';
 import { idParam } from '../params';
-import { createDoctorSchema, updateDoctorSchema } from './doctors.schemas';
+import {
+  createDoctorSchema,
+  listDoctorsQuery,
+  updateDoctorSchema,
+} from './doctors.schemas';
 import * as service from './doctors.service';
 
 export const doctorsRouter = Router();
 
-doctorsRouter.get('/', async (_req, res) => {
-  res.json(await service.listDoctors());
-});
+doctorsRouter.get(
+  '/',
+  validated({ query: listDoctorsQuery }, async ({ query }, res) => {
+    res.json(await service.listDoctors(query));
+  }),
+);
 
-doctorsRouter.post('/', async (req, res) => {
-  const input = createDoctorSchema.parse(req.body);
-  res.status(201).json(await service.createDoctor(input));
-});
+doctorsRouter.post(
+  '/',
+  validated({ body: createDoctorSchema }, async ({ body }, res) => {
+    res.status(201).json(await service.createDoctor(body));
+  }),
+);
 
-doctorsRouter.get('/:id', async (req, res) => {
-  const { id } = idParam.parse(req.params);
-  res.json(await service.getDoctor(id));
-});
+doctorsRouter.get(
+  '/:id',
+  validated({ params: idParam }, async ({ params }, res) => {
+    res.json(await service.getDoctor(params.id));
+  }),
+);
 
-doctorsRouter.patch('/:id', async (req, res) => {
-  const { id } = idParam.parse(req.params);
-  const input = updateDoctorSchema.parse(req.body);
-  res.json(await service.updateDoctor(id, input));
-});
+doctorsRouter.patch(
+  '/:id',
+  validated(
+    { params: idParam, body: updateDoctorSchema },
+    async ({ params, body }, res) => {
+      res.json(await service.updateDoctor(params.id, body));
+    },
+  ),
+);

@@ -28,6 +28,18 @@ npm run dev                 # http://localhost:3001
 | PATCH              | `/appointments/:id/status`        | `scheduled` → `completed`, `cancelled` or `no_show`     |
 | GET, POST          | `/appointments/:id/prescriptions` | Only for completed appointments                         |
 
+## Pagination
+
+List endpoints (`/patients`, `/doctors`, `/appointments`) return one page at a time:
+
+```json
+{ "data": [...], "nextCursor": "eyJ2YWx1ZSI6..." }
+```
+
+Pass `?limit=` (1 to 100, default 20) and, for the next page, `?cursor=<nextCursor>`.
+`nextCursor` is `null` on the last page. This is keyset pagination, so pages stay fast
+and don't skip or repeat rows when data changes between requests.
+
 ## Rules the API enforces
 
 - Appointments must be in the future and end after they start.

@@ -1,11 +1,30 @@
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq, ilike, type SQL } from 'drizzle-orm';
 import { db } from '../../db';
+import { escapeLike } from '../../db/escape-like';
 import { doctors } from '../../db/schema';
 import { NotFoundError } from '../../errors';
-import type { CreateDoctorInput, UpdateDoctorInput } from './doctors.schemas';
+import { afterCursor, decodeCursor, toPage } from '../pagination';
+import type {
+  CreateDoctorInput,
+  ListDoctorsQuery,
+  UpdateDoctorInput,
+} from './doctors.schemas';
 
-export async function listDoctors() {
-  return db.select().from(doctors).orderBy(asc(doctors.lastName));
+export async function listDoctors({ limit, cursor, specialty }: ListDoctorsQuery) {
+  const conditions: SQL[] = [];
+  // Case-insensitive exact match, so "cardiology" finds "Cardiology".
+  if (specialty) conditions.push(ilike(doctors.specialty, escapeLike(specialty)));
+  if (cursor)
+    conditions.push(afterCursor(doctors.lastName, doctors.id, decodeCursor(cursor)));
+
+  const rows = await db
+    .select()
+    .from(doctors)
+    .where(and(...conditions))
+    .orderBy(asc(doctors.lastName), asc(doctors.id))
+    .limit(limit + 1);
+
+  return toPage(rows, limit, (d) => d.lastName);
 }
 
 export async function getDoctor(id: string) {
