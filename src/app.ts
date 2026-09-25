@@ -8,6 +8,7 @@ import { authRouter } from './modules/auth/auth.routes';
 import { appointmentsRouter } from './modules/appointments/appointments.routes';
 import { doctorsRouter } from './modules/doctors/doctors.routes';
 import { patientsRouter } from './modules/patients/patients.routes';
+import { docsRouter } from './routes/docs';
 import { healthRouter } from './routes/health';
 
 // Builds the Express app without starting it. Tests import this directly
@@ -26,6 +27,7 @@ export function createApp() {
   app.use(cookieParser());
 
   app.use('/health', healthRouter);
+  app.use(docsRouter);
   app.use('/auth', authRouter);
   app.use('/patients', patientsRouter);
   app.use('/doctors', doctorsRouter);

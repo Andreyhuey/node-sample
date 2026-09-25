@@ -25,6 +25,13 @@ Tests are integration tests: they send real HTTP requests to the app with Supert
 hit a real Postgres database (`TEST_DATABASE_URL`, default `clinic_test`), which is
 migrated before the run and emptied before every test.
 
+## API docs
+
+Interactive docs are at [`/docs`](http://localhost:3001/docs) (Swagger UI) and the raw spec at
+`/openapi.json`. The request schemas in the spec are the same Zod schemas the routes validate
+with, and tests check real responses against the documented response schemas, so the docs
+can't drift from the code.
+
 ## Authentication
 
 | Role      | Can                                                                            |
