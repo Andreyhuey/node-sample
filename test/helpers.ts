@@ -1,14 +1,38 @@
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { createApp } from '../src/app';
+import { type AuthUser, signAccessToken } from '../src/modules/auth/tokens';
 
 // supertest sends requests straight to the app, no port needed.
 export const api = request(createApp());
+
+// A request client that sends a bearer token with every request.
+export function as(token: string) {
+  const auth = (req: request.Test) => req.set('Authorization', `Bearer ${token}`);
+  return {
+    get: (url: string) => auth(api.get(url)),
+    post: (url: string) => auth(api.post(url)),
+    patch: (url: string) => auth(api.patch(url)),
+    delete: (url: string) => auth(api.delete(url)),
+  };
+}
+
+export function tokenFor(user: Partial<AuthUser> & Pick<AuthUser, 'role'>) {
+  return signAccessToken({ id: randomUUID(), doctorId: null, patientId: null, ...user });
+}
+
+// Access tokens are checked without a database lookup, so tests can act as
+// an admin without creating an admin account first.
+export const admin = as(tokenFor({ role: 'admin' }));
+export const asDoctor = (doctorId: string) => as(tokenFor({ role: 'doctor', doctorId }));
+export const asPatient = (patientId: string) =>
+  as(tokenFor({ role: 'patient', patientId }));
 
 let n = 0;
 const unique = () => `${Date.now()}-${++n}`;
 
 export async function createPatient(overrides: Record<string, unknown> = {}) {
-  const res = await api
+  const res = await admin
     .post('/patients')
     .send({
       firstName: 'Ada',
@@ -22,7 +46,7 @@ export async function createPatient(overrides: Record<string, unknown> = {}) {
 }
 
 export async function createDoctor(overrides: Record<string, unknown> = {}) {
-  const res = await api
+  const res = await admin
     .post('/doctors')
     .send({
       firstName: 'Tunde',
@@ -45,7 +69,7 @@ export function slot(daysAhead: number, hour: number, minutes = 30) {
 }
 
 export async function book(patientId: string, doctorId: string, time = slot(1, 10)) {
-  const res = await api
+  const res = await admin
     .post('/appointments')
     .send({ patientId, doctorId, ...time })
     .expect(201);

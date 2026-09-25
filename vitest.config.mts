@@ -6,7 +6,11 @@ const TEST_DATABASE_URL =
 
 export default defineConfig({
   test: {
-    env: { NODE_ENV: 'test', DATABASE_URL: TEST_DATABASE_URL },
+    env: {
+      NODE_ENV: 'test',
+      DATABASE_URL: TEST_DATABASE_URL,
+      JWT_SECRET: 'test-secret-test-secret-test-secret-123',
+    },
     globalSetup: ['./test/global-setup.ts'],
     setupFiles: ['./test/setup.ts'],
     // All test files share one database, so run them one at a time.
