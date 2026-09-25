@@ -14,10 +14,20 @@ npm run db:seed-admin       # creates the admin from ADMIN_EMAIL / ADMIN_PASSWOR
 npm run dev                 # http://localhost:3001
 ```
 
+## Run everything in Docker
+
+```bash
+docker compose up --build   # Postgres, then migrations, then the API on :3001
+```
+
+The image is a multi-stage build: TypeScript is compiled in one stage, and the final
+image only has the compiled JS, production dependencies and the migration files. It runs
+as a non-root user, has a health check, and shuts down cleanly on `SIGTERM`.
+
 ## Tests
 
 ```bash
-createdb clinic_test        # once (or: docker compose exec db createdb -U postgres clinic_test)
+createdb clinic_test        # once; docker compose creates it for you
 npm test
 ```
 
