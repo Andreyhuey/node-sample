@@ -2,106 +2,132 @@
 
 [![CI](https://github.com/Andreyhuey/node-sample/actions/workflows/ci.yml/badge.svg)](https://github.com/Andreyhuey/node-sample/actions/workflows/ci.yml)
 
-A REST API for a small clinic: patients, doctors, appointment booking and prescriptions.
-Built with TypeScript, Express 5, PostgreSQL and Drizzle ORM.
+A production-style REST API for a small clinic: patients sign up and book appointments,
+doctors run their schedule and write prescriptions, and admins manage the clinic.
+
+**TypeScript · Express 5 · PostgreSQL · Drizzle ORM · Zod · JWT auth · Vitest · OpenAPI · Docker · GitHub Actions**
+
+- **Live demo:** _add your Render or Fly URL here after deploying_ (docs at `/docs`)
+- **Try it:** log in as `demo-patient@clinic.dev`, `demo-doctor@clinic.dev` or
+  `demo-admin@clinic.dev` with password `demo-password`, then click **Authorize** in the docs.
+
+![Swagger UI for the Clinic API](docs/images/swagger.png)
+
+## What it does
+
+- Patients register, see their own record, book appointments with a doctor, cancel them,
+  and read their prescriptions.
+- Doctors see their own appointments, mark them completed or no-show, and prescribe.
+- Admins manage patients and doctors and give doctors logins.
+- Every list is paginated and filterable (search, specialty, status, date range).
+
+## Architecture
+
+```mermaid
+flowchart LR
+  C[Client / Swagger UI] -->|HTTPS + Bearer JWT| A
+  subgraph A[Express app]
+    direction TB
+    M[helmet · cors · rate limit · auth] --> R[routes<br/>validated with Zod]
+    R --> S[services<br/>business rules]
+    S --> D[Drizzle queries]
+  end
+  D --> P[(PostgreSQL)]
+```
+
+Each resource lives in `src/modules/<name>/` split into **routes** (HTTP only),
+**schemas** (Zod) and a **service** (rules and queries). Routes never touch SQL; services
+never touch `req`/`res`.
+
+```
+src/
+  app.ts               builds the Express app (tests import this)
+  index.ts             starts the server, graceful shutdown
+  config.ts            env vars validated with Zod at startup
+  release.ts           runs migrations (and demo seed) before each deploy
+  openapi.ts           OpenAPI spec built from the same Zod schemas
+  db/                  schema, migrations runner, seed scripts
+  middleware/          auth, validation wrapper, error handler
+  modules/             auth, patients, doctors, appointments, prescriptions
+drizzle/               SQL migrations, committed and reviewed like code
+test/                  integration tests against real Postgres
+```
+
+## Decisions and trade-offs
+
+- **Double booking is prevented by the database, not just the code.** A service-level check
+  gives a friendly error, but two requests at the same moment could both pass it. A Postgres
+  `EXCLUDE USING gist` constraint on `(doctor_id, tstzrange(starts_at, ends_at))` makes it
+  impossible; a test fires six simultaneous bookings and asserts exactly one succeeds.
+- **Refresh tokens rotate and detect reuse.** Access tokens are short-lived JWTs (15 min).
+  Refresh tokens are random, stored only as SHA-256 hashes, sent as an `httpOnly`,
+  `SameSite=Strict` cookie, and work once. Presenting a used token ends every session for
+  that user, because it means the token was probably stolen.
+- **Keyset pagination instead of OFFSET.** `WHERE (sort_col, id) > (…)` with a matching
+  composite index stays fast on deep pages and never skips or repeats rows when data
+  changes between requests.
+- **One source of truth for validation and docs.** Routes validate with Zod through a typed
+  `validated()` wrapper; the OpenAPI spec reuses those schemas, and contract tests check real
+  responses against the documented response schemas.
+- **Integration tests over mocks.** Tests hit a real Postgres, because the most important
+  rules (constraints, transactions, row-level scoping) live in SQL.
+- **Migrations run as a release step**, not on app start (on Fly), so a failed migration
+  never leaves a half-upgraded app serving traffic.
+- **Security basics:** Argon2id password hashing, constant-time-style login for unknown
+  emails, per-IP rate limiting on credentials, helmet headers, CORS allow-list, JWT
+  algorithm pinning, non-root container.
 
 ## Run it locally
 
 ```bash
 cp .env.example .env
-docker compose up -d        # starts Postgres on localhost:5432
+docker compose up -d db     # Postgres on localhost:5432 (also creates clinic_test)
 npm install
-npm run db:migrate          # applies the SQL files in drizzle/
-npm run db:seed-admin       # creates the admin from ADMIN_EMAIL / ADMIN_PASSWORD
-npm run dev                 # http://localhost:3001
+npm run db:migrate
+npm run db:seed-demo        # optional: demo accounts and data
+npm run dev                 # http://localhost:3001, docs at /docs
 ```
 
-## Run everything in Docker
-
-```bash
-docker compose up --build   # Postgres, then migrations, then the API on :3001
-```
-
-The image is a multi-stage build: TypeScript is compiled in one stage, and the final
-image only has the compiled JS, production dependencies and the migration files. It runs
-as a non-root user, has a health check, and shuts down cleanly on `SIGTERM`.
-
-## Deploy
-
-`fly.toml` (Fly.io) and `render.yaml` (Render) are ready to use with a Neon Postgres
-database. Each deploy applies migrations first and can load demo accounts. Step by step:
-[docs/deploy.md](docs/deploy.md).
+Or run the whole stack in containers: `docker compose up --build`.
 
 ## Tests
 
 ```bash
-createdb clinic_test        # once; docker compose creates it for you
-npm test
+npm test          # 46 integration tests, about 6 seconds
+npm run lint && npm run typecheck && npm run format:check
 ```
 
-Tests are integration tests: they send real HTTP requests to the app with Supertest and
-hit a real Postgres database (`TEST_DATABASE_URL`, default `clinic_test`), which is
-migrated before the run and emptied before every test.
+CI runs all of this on every pull request, plus a Docker image build.
 
-## API docs
+## API overview
 
-Interactive docs are at [`/docs`](http://localhost:3001/docs) (Swagger UI) and the raw spec at
-`/openapi.json`. The request schemas in the spec are the same Zod schemas the routes validate
-with, and tests check real responses against the documented response schemas, so the docs
-can't drift from the code.
+Full, interactive reference: `/docs`. Raw spec: `/openapi.json`.
 
-## Authentication
+| Method             | Path                                               | Who                                          |
+| ------------------ | -------------------------------------------------- | -------------------------------------------- |
+| POST               | `/auth/register`, `/auth/login`                    | Anyone                                       |
+| POST               | `/auth/refresh`, `/auth/logout`                    | Anyone with the refresh cookie               |
+| GET                | `/auth/me`                                         | Logged in                                    |
+| GET                | `/patients`                                        | Admin, doctor                                |
+| POST               | `/patients`                                        | Admin                                        |
+| GET, PATCH, DELETE | `/patients/:id`                                    | Admin, doctor (read), the patient            |
+| GET                | `/patients/:id/prescriptions`                      | Admin, doctor, the patient                   |
+| GET                | `/doctors`, `/doctors/:id`                         | Anyone                                       |
+| POST, PATCH        | `/doctors`, `/doctors/:id`, `/doctors/:id/account` | Admin                                        |
+| GET, POST          | `/appointments`                                    | Scoped to the caller's own records           |
+| GET                | `/appointments/:id`                                | Admin or a participant                       |
+| PATCH              | `/appointments/:id/status`                         | Admin, the doctor, the patient (cancel only) |
+| GET, POST          | `/appointments/:id/prescriptions`                  | Participants read; the doctor writes         |
 
-| Role      | Can                                                                            |
-| --------- | ------------------------------------------------------------------------------ |
-| `admin`   | Everything, including creating doctors and giving them logins                  |
-| `doctor`  | See patients, see and update their own appointments, prescribe for them        |
-| `patient` | Sign up, see and edit their own record, book and cancel their own appointments |
+Lists return `{ data, nextCursor }`; pass `?limit=` (1 to 100) and `?cursor=`.
+Errors always look like `{ "error": { "code", "message", "details"? } }`.
 
-- `POST /auth/register` (patients) and `POST /auth/login` return `{ accessToken, user }`.
-  Send the token as `Authorization: Bearer <accessToken>`. It expires after 15 minutes.
-- A refresh token is set as an `httpOnly`, `SameSite=Strict` cookie scoped to `/auth`.
-  `POST /auth/refresh` swaps it for a new access token and a new refresh token.
-  Each refresh token works once; replaying a used one ends all of that user's sessions.
-- `POST /auth/logout` revokes the refresh token. `GET /auth/me` returns the caller.
-- Passwords are hashed with Argon2id. Login and register are rate-limited per IP.
+## Deploy
 
-## Endpoints
-
-| Method             | Path                              | Notes                                                   |
-| ------------------ | --------------------------------- | ------------------------------------------------------- |
-| GET                | `/health`                         | Liveness check                                          |
-| GET, POST          | `/patients`                       |                                                         |
-| GET, PATCH, DELETE | `/patients/:id`                   | Delete is refused (409) if the patient has appointments |
-| GET                | `/patients/:id/prescriptions`     | All prescriptions across the patient's visits           |
-| GET, POST          | `/doctors`                        |                                                         |
-| GET, PATCH         | `/doctors/:id`                    |                                                         |
-| GET, POST          | `/appointments`                   | Filter with `?doctorId=` and `?patientId=`              |
-| GET                | `/appointments/:id`               |                                                         |
-| PATCH              | `/appointments/:id/status`        | `scheduled` → `completed`, `cancelled` or `no_show`     |
-| GET, POST          | `/appointments/:id/prescriptions` | Only for completed appointments                         |
-
-## Pagination
-
-List endpoints (`/patients`, `/doctors`, `/appointments`) return one page at a time:
-
-```json
-{ "data": [...], "nextCursor": "eyJ2YWx1ZSI6..." }
-```
-
-Pass `?limit=` (1 to 100, default 20) and, for the next page, `?cursor=<nextCursor>`.
-`nextCursor` is `null` on the last page. This is keyset pagination, so pages stay fast
-and don't skip or repeat rows when data changes between requests.
-
-## Rules the API enforces
-
-- Appointments must be in the future and end after they start.
-- A doctor can't be double-booked. The service checks first, and a Postgres exclusion
-  constraint guarantees it even when two requests arrive at once.
-- Only a scheduled appointment can change status. Completed, cancelled and no-show are final.
-- Errors always look like `{ "error": { "code", "message", "details"? } }`.
+`render.yaml` (Render free tier) and `fly.toml` (Fly.io) are ready to use with a Neon
+Postgres database. See [docs/deploy.md](docs/deploy.md).
 
 ## Changing the database
 
-Edit `src/db/schema.ts`, run `npm run db:generate` to create a new migration in `drizzle/`,
-review the SQL, then `npm run db:migrate`. Commit the migration with the code change.
+Edit `src/db/schema.ts`, run `npm run db:generate`, review the generated SQL in
+`drizzle/`, then `npm run db:migrate`. Commit the migration with the code change.
