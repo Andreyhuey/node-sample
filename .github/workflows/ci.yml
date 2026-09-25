@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+  # Lets you run CI by hand from the Actions tab.
+  workflow_dispatch:
   push:
     branches: [master]
 
