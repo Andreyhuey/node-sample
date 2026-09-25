@@ -1,5 +1,7 @@
 # Clinic API
 
+[![CI](https://github.com/Andreyhuey/node-sample/actions/workflows/ci.yml/badge.svg)](https://github.com/Andreyhuey/node-sample/actions/workflows/ci.yml)
+
 A REST API for a small clinic: patients, doctors, appointment booking and prescriptions.
 Built with TypeScript, Express 5, PostgreSQL and Drizzle ORM.
 
