@@ -13,6 +13,17 @@ npm run db:migrate          # applies the SQL files in drizzle/
 npm run dev                 # http://localhost:3001
 ```
 
+## Tests
+
+```bash
+createdb clinic_test        # once (or: docker compose exec db createdb -U postgres clinic_test)
+npm test
+```
+
+Tests are integration tests: they send real HTTP requests to the app with Supertest and
+hit a real Postgres database (`TEST_DATABASE_URL`, default `clinic_test`), which is
+migrated before the run and emptied before every test.
+
 ## Endpoints
 
 | Method             | Path                              | Notes                                                   |
