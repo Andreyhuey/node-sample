@@ -16,3 +16,16 @@ export class NotFoundError extends AppError {
     super(404, 'NOT_FOUND', message);
   }
 }
+
+export class ConflictError extends AppError {
+  constructor(message: string) {
+    super(409, 'CONFLICT', message);
+  }
+}
+
+// The request is well-formed but breaks a business rule.
+export class UnprocessableError extends AppError {
+  constructor(message: string) {
+    super(422, 'UNPROCESSABLE', message);
+  }
+}

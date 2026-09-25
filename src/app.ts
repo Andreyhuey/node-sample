@@ -1,6 +1,9 @@
 import express from 'express';
 import helmet from 'helmet';
 import { errorHandler, notFound } from './middleware/error-handler';
+import { appointmentsRouter } from './modules/appointments/appointments.routes';
+import { doctorsRouter } from './modules/doctors/doctors.routes';
+import { patientsRouter } from './modules/patients/patients.routes';
 import { healthRouter } from './routes/health';
 
 // Builds the Express app without starting it. Tests import this directly
@@ -12,6 +15,9 @@ export function createApp() {
   app.use(express.json());
 
   app.use('/health', healthRouter);
+  app.use('/patients', patientsRouter);
+  app.use('/doctors', doctorsRouter);
+  app.use('/appointments', appointmentsRouter);
 
   // These two must come after every route.
   app.use(notFound);
