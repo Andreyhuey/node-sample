@@ -1,11 +1,38 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, asc, eq, ilike, or, type SQL } from 'drizzle-orm';
 import { db } from '../../db';
+import { escapeLike } from '../../db/escape-like';
 import { patients } from '../../db/schema';
 import { NotFoundError } from '../../errors';
-import type { CreatePatientInput, UpdatePatientInput } from './patients.schemas';
+import { afterCursor, decodeCursor, toPage } from '../pagination';
+import type {
+  CreatePatientInput,
+  ListPatientsQuery,
+  UpdatePatientInput,
+} from './patients.schemas';
 
-export async function listPatients() {
-  return db.select().from(patients).orderBy(desc(patients.createdAt));
+export async function listPatients({ limit, cursor, q }: ListPatientsQuery) {
+  const conditions: SQL[] = [];
+  if (q) {
+    const pattern = `%${escapeLike(q)}%`;
+    conditions.push(
+      or(
+        ilike(patients.firstName, pattern),
+        ilike(patients.lastName, pattern),
+        ilike(patients.email, pattern),
+      )!,
+    );
+  }
+  if (cursor)
+    conditions.push(afterCursor(patients.lastName, patients.id, decodeCursor(cursor)));
+
+  const rows = await db
+    .select()
+    .from(patients)
+    .where(and(...conditions))
+    .orderBy(asc(patients.lastName), asc(patients.id))
+    .limit(limit + 1);
+
+  return toPage(rows, limit, (p) => p.lastName);
 }
 
 export async function getPatient(id: string) {

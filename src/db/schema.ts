@@ -17,24 +17,33 @@ const timestamps = {
     .$onUpdate(() => new Date()),
 };
 
-export const patients = pgTable('patients', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  firstName: text('first_name').notNull(),
-  lastName: text('last_name').notNull(),
-  email: text('email').notNull().unique(),
-  phone: text('phone'),
-  dateOfBirth: date('date_of_birth').notNull(),
-  ...timestamps,
-});
+export const patients = pgTable(
+  'patients',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    firstName: text('first_name').notNull(),
+    lastName: text('last_name').notNull(),
+    email: text('email').notNull().unique(),
+    phone: text('phone'),
+    dateOfBirth: date('date_of_birth').notNull(),
+    ...timestamps,
+  },
+  // Lists are sorted and paginated by (last_name, id).
+  (t) => [index('patients_last_name_id_idx').on(t.lastName, t.id)],
+);
 
-export const doctors = pgTable('doctors', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  firstName: text('first_name').notNull(),
-  lastName: text('last_name').notNull(),
-  email: text('email').notNull().unique(),
-  specialty: text('specialty').notNull(),
-  ...timestamps,
-});
+export const doctors = pgTable(
+  'doctors',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    firstName: text('first_name').notNull(),
+    lastName: text('last_name').notNull(),
+    email: text('email').notNull().unique(),
+    specialty: text('specialty').notNull(),
+    ...timestamps,
+  },
+  (t) => [index('doctors_last_name_id_idx').on(t.lastName, t.id)],
+);
 
 export const appointmentStatus = pgEnum('appointment_status', [
   'scheduled',
@@ -64,6 +73,8 @@ export const appointments = pgTable(
     // Speeds up "what does this doctor have on this day" and the overlap check.
     index('appointments_doctor_starts_idx').on(t.doctorId, t.startsAt),
     index('appointments_patient_idx').on(t.patientId),
+    // Default list order, used for keyset pagination.
+    index('appointments_starts_id_idx').on(t.startsAt, t.id),
   ],
 );
 

@@ -1,27 +1,39 @@
-import { and, asc, eq, gt, lt, type SQL } from 'drizzle-orm';
+import { and, asc, eq, gt, gte, lt, type SQL } from 'drizzle-orm';
 import { db } from '../../db';
 import { appointments } from '../../db/schema';
 import { ConflictError, NotFoundError, UnprocessableError } from '../../errors';
 import { getDoctor } from '../doctors/doctors.service';
 import { getPatient } from '../patients/patients.service';
+import { afterCursor, decodeCursor, toPage } from '../pagination';
 import type {
   AppointmentStatusUpdate,
   CreateAppointmentInput,
+  ListAppointmentsQuery,
 } from './appointments.schemas';
 
-export async function listAppointments(filters: {
-  patientId?: string;
-  doctorId?: string;
-}) {
-  const conditions: SQL[] = [];
-  if (filters.patientId) conditions.push(eq(appointments.patientId, filters.patientId));
-  if (filters.doctorId) conditions.push(eq(appointments.doctorId, filters.doctorId));
+export async function listAppointments(query: ListAppointmentsQuery) {
+  const { limit, cursor, patientId, doctorId, status, from, to } = query;
 
-  return db
+  const conditions: SQL[] = [];
+  if (patientId) conditions.push(eq(appointments.patientId, patientId));
+  if (doctorId) conditions.push(eq(appointments.doctorId, doctorId));
+  if (status) conditions.push(eq(appointments.status, status));
+  if (from) conditions.push(gte(appointments.startsAt, from));
+  if (to) conditions.push(lt(appointments.startsAt, to));
+  if (cursor) {
+    conditions.push(
+      afterCursor(appointments.startsAt, appointments.id, decodeCursor(cursor)),
+    );
+  }
+
+  const rows = await db
     .select()
     .from(appointments)
     .where(and(...conditions))
-    .orderBy(asc(appointments.startsAt));
+    .orderBy(asc(appointments.startsAt), asc(appointments.id))
+    .limit(limit + 1);
+
+  return toPage(rows, limit, (a) => a.startsAt.toISOString());
 }
 
 export async function getAppointment(id: string) {
