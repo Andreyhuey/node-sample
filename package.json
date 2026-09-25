@@ -18,7 +18,9 @@
     "test:watch": "vitest",
     "db:migrate:prod": "node dist/db/migrate.js",
     "db:seed-admin": "tsx --env-file-if-exists=.env src/db/seed-admin.ts",
-    "db:seed-admin:prod": "node dist/db/seed-admin.js"
+    "db:seed-admin:prod": "node dist/db/seed-admin.js",
+    "db:seed-demo": "tsx --env-file-if-exists=.env src/db/seed-demo.ts",
+    "db:seed-demo:prod": "node dist/db/seed-demo.js"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.3.4",

@@ -26,6 +26,12 @@ The image is a multi-stage build: TypeScript is compiled in one stage, and the f
 image only has the compiled JS, production dependencies and the migration files. It runs
 as a non-root user, has a health check, and shuts down cleanly on `SIGTERM`.
 
+## Deploy
+
+`fly.toml` (Fly.io) and `render.yaml` (Render) are ready to use with a Neon Postgres
+database. Each deploy applies migrations first and can load demo accounts. Step by step:
+[docs/deploy.md](docs/deploy.md).
+
 ## Tests
 
 ```bash
