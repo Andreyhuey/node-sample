@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { api, createDoctor } from './helpers';
+import { admin, createDoctor } from './helpers';
 
 describe('doctors', () => {
   it('creates, gets and updates a doctor', async () => {
     const doctor = await createDoctor({ specialty: 'Cardiology' });
-    await api.get(`/doctors/${doctor.id}`).expect(200);
+    await admin.get(`/doctors/${doctor.id}`).expect(200);
 
-    const res = await api
+    const res = await admin
       .patch(`/doctors/${doctor.id}`)
       .send({ specialty: 'Paediatrics' })
       .expect(200);
@@ -18,7 +18,7 @@ describe('doctors', () => {
     await createDoctor({ specialty: 'Cardiology' });
     await createDoctor({ specialty: 'Dermatology' });
 
-    const res = await api.get('/doctors?specialty=cardiology').expect(200);
+    const res = await admin.get('/doctors?specialty=cardiology').expect(200);
     expect(res.body.data).toHaveLength(2);
   });
 });

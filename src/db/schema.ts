@@ -99,3 +99,41 @@ export type Patient = typeof patients.$inferSelect;
 export type Doctor = typeof doctors.$inferSelect;
 export type Appointment = typeof appointments.$inferSelect;
 export type Prescription = typeof prescriptions.$inferSelect;
+
+export const userRole = pgEnum('user_role', ['admin', 'doctor', 'patient']);
+
+// Login accounts. A doctor or patient account points at its clinic record;
+// an admin account points at neither.
+export const users = pgTable('users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: text('email').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  role: userRole('role').notNull(),
+  doctorId: uuid('doctor_id')
+    .unique()
+    .references(() => doctors.id, { onDelete: 'cascade' }),
+  patientId: uuid('patient_id')
+    .unique()
+    .references(() => patients.id, { onDelete: 'cascade' }),
+  ...timestamps,
+});
+
+// Only a SHA-256 hash of each refresh token is stored, so a database leak
+// doesn't hand out working tokens.
+export const refreshTokens = pgTable(
+  'refresh_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull().unique(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('refresh_tokens_user_idx').on(t.userId)],
+);
+
+export type User = typeof users.$inferSelect;
+export type UserRole = (typeof userRole.enumValues)[number];

@@ -10,6 +10,7 @@ cp .env.example .env
 docker compose up -d        # starts Postgres on localhost:5432
 npm install
 npm run db:migrate          # applies the SQL files in drizzle/
+npm run db:seed-admin       # creates the admin from ADMIN_EMAIL / ADMIN_PASSWORD
 npm run dev                 # http://localhost:3001
 ```
 
@@ -23,6 +24,22 @@ npm test
 Tests are integration tests: they send real HTTP requests to the app with Supertest and
 hit a real Postgres database (`TEST_DATABASE_URL`, default `clinic_test`), which is
 migrated before the run and emptied before every test.
+
+## Authentication
+
+| Role      | Can                                                                            |
+| --------- | ------------------------------------------------------------------------------ |
+| `admin`   | Everything, including creating doctors and giving them logins                  |
+| `doctor`  | See patients, see and update their own appointments, prescribe for them        |
+| `patient` | Sign up, see and edit their own record, book and cancel their own appointments |
+
+- `POST /auth/register` (patients) and `POST /auth/login` return `{ accessToken, user }`.
+  Send the token as `Authorization: Bearer <accessToken>`. It expires after 15 minutes.
+- A refresh token is set as an `httpOnly`, `SameSite=Strict` cookie scoped to `/auth`.
+  `POST /auth/refresh` swaps it for a new access token and a new refresh token.
+  Each refresh token works once; replaying a used one ends all of that user's sessions.
+- `POST /auth/logout` revokes the refresh token. `GET /auth/me` returns the caller.
+- Passwords are hashed with Argon2id. Login and register are rate-limited per IP.
 
 ## Endpoints
 

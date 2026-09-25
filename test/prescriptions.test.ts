@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { api, book, createDoctor, createPatient } from './helpers';
+import { admin, asDoctor, book, createDoctor, createPatient } from './helpers';
 
 const rx = {
   medication: 'Paracetamol',
@@ -14,10 +14,13 @@ describe('prescriptions', () => {
     const doctor = await createDoctor();
     const appt = await book(patient.id, doctor.id);
 
-    await api.post(`/appointments/${appt.id}/prescriptions`).send(rx).expect(422);
+    await asDoctor(doctor.id)
+      .post(`/appointments/${appt.id}/prescriptions`)
+      .send(rx)
+      .expect(422);
 
-    await api.patch(`/appointments/${appt.id}/status`).send({ status: 'completed' });
-    const res = await api
+    await admin.patch(`/appointments/${appt.id}/status`).send({ status: 'completed' });
+    const res = await asDoctor(doctor.id)
       .post(`/appointments/${appt.id}/prescriptions`)
       .send(rx)
       .expect(201);
@@ -28,10 +31,10 @@ describe('prescriptions', () => {
     const patient = await createPatient();
     const doctor = await createDoctor();
     const appt = await book(patient.id, doctor.id);
-    await api.patch(`/appointments/${appt.id}/status`).send({ status: 'completed' });
-    await api.post(`/appointments/${appt.id}/prescriptions`).send(rx);
+    await admin.patch(`/appointments/${appt.id}/status`).send({ status: 'completed' });
+    await asDoctor(doctor.id).post(`/appointments/${appt.id}/prescriptions`).send(rx);
 
-    const res = await api.get(`/patients/${patient.id}/prescriptions`).expect(200);
+    const res = await admin.get(`/patients/${patient.id}/prescriptions`).expect(200);
     expect(res.body).toHaveLength(1);
     expect(res.body[0].doctorId).toBe(doctor.id);
   });
@@ -40,9 +43,24 @@ describe('prescriptions', () => {
     const patient = await createPatient();
     const doctor = await createDoctor();
     const appt = await book(patient.id, doctor.id);
-    await api
+    await asDoctor(doctor.id)
       .post(`/appointments/${appt.id}/prescriptions`)
       .send({ ...rx, durationDays: 0 })
       .expect(400);
+  });
+});
+
+describe('prescription access', () => {
+  it('forbids other doctors, patients and admins from prescribing', async () => {
+    const patient = await createPatient();
+    const doctor = await createDoctor();
+    const otherDoctor = await createDoctor();
+    const appt = await book(patient.id, doctor.id);
+    await admin.patch(`/appointments/${appt.id}/status`).send({ status: 'completed' });
+
+    const url = `/appointments/${appt.id}/prescriptions`;
+    await asDoctor(otherDoctor.id).post(url).send(rx).expect(403);
+    await admin.post(url).send(rx).expect(403);
+    await asDoctor(doctor.id).post(url).send(rx).expect(201);
   });
 });

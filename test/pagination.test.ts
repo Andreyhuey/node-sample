@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { api, createPatient } from './helpers';
+import { admin, createPatient } from './helpers';
 
 async function collectPages(path: string) {
   const ids: string[] = [];
@@ -7,7 +7,7 @@ async function collectPages(path: string) {
   let pages = 0;
   do {
     const url: string = cursor ? `${path}&cursor=${cursor}` : path;
-    const res = await api.get(url).expect(200);
+    const res = await admin.get(url).expect(200);
     ids.push(...res.body.data.map((p: { id: string }) => p.id));
     cursor = res.body.nextCursor;
     pages++;
@@ -30,14 +30,14 @@ describe('pagination', () => {
 
   it('returns nextCursor null on the last page', async () => {
     await createPatient();
-    const res = await api.get('/patients?limit=5').expect(200);
+    const res = await admin.get('/patients?limit=5').expect(200);
     expect(res.body.nextCursor).toBeNull();
   });
 
   it('rejects a bad limit or cursor', async () => {
-    await api.get('/patients?limit=0').expect(400);
-    await api.get('/patients?limit=101').expect(400);
-    const res = await api.get('/patients?cursor=garbage').expect(400);
+    await admin.get('/patients?limit=0').expect(400);
+    await admin.get('/patients?limit=101').expect(400);
+    const res = await admin.get('/patients?cursor=garbage').expect(400);
     expect(res.body.error.code).toBe('INVALID_CURSOR');
   });
 });

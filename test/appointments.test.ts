@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { api, book, createDoctor, createPatient, slot } from './helpers';
+import { admin, book, createDoctor, createPatient, slot } from './helpers';
 
 async function setup() {
   const patient = await createPatient();
@@ -16,7 +16,7 @@ describe('appointments', () => {
 
   it('rejects bookings in the past', async () => {
     const { patient, doctor } = await setup();
-    const res = await api
+    const res = await admin
       .post('/appointments')
       .send({ patientId: patient.id, doctorId: doctor.id, ...slot(-1, 10) })
       .expect(422);
@@ -26,7 +26,7 @@ describe('appointments', () => {
   it('rejects an end time before the start time', async () => {
     const { patient, doctor } = await setup();
     const { startsAt, endsAt } = slot(1, 10);
-    await api
+    await admin
       .post('/appointments')
       .send({
         patientId: patient.id,
@@ -39,7 +39,7 @@ describe('appointments', () => {
 
   it('returns 404 for an unknown patient or doctor', async () => {
     const { patient } = await setup();
-    await api
+    await admin
       .post('/appointments')
       .send({
         patientId: patient.id,
@@ -57,7 +57,7 @@ describe('appointments', () => {
     const overlap = slot(1, 10, 30);
     overlap.startsAt = new Date(Date.parse(overlap.startsAt) + 15 * 60_000).toISOString();
     overlap.endsAt = new Date(Date.parse(overlap.endsAt) + 15 * 60_000).toISOString();
-    await api
+    await admin
       .post('/appointments')
       .send({ patientId: patient.id, doctorId: doctor.id, ...overlap })
       .expect(409);
@@ -74,7 +74,7 @@ describe('appointments', () => {
     const time = slot(2, 9);
     const results = await Promise.all(
       Array.from({ length: 6 }, () =>
-        api
+        admin
           .post('/appointments')
           .send({ patientId: patient.id, doctorId: doctor.id, ...time }),
       ),
@@ -87,7 +87,7 @@ describe('appointments', () => {
     const { patient, doctor } = await setup();
     const time = slot(1, 14);
     const appt = await book(patient.id, doctor.id, time);
-    await api
+    await admin
       .patch(`/appointments/${appt.id}/status`)
       .send({ status: 'cancelled' })
       .expect(200);
@@ -97,11 +97,11 @@ describe('appointments', () => {
   it('only allows status changes from scheduled', async () => {
     const { patient, doctor } = await setup();
     const appt = await book(patient.id, doctor.id);
-    await api
+    await admin
       .patch(`/appointments/${appt.id}/status`)
       .send({ status: 'completed' })
       .expect(200);
-    const res = await api
+    const res = await admin
       .patch(`/appointments/${appt.id}/status`)
       .send({ status: 'cancelled' })
       .expect(422);
@@ -114,17 +114,17 @@ describe('appointments', () => {
     await book(patient.id, doctor.id, slot(1, 9));
     await book(patient.id, doctor.id, slot(3, 9));
     const done = await book(patient.id, other.id, slot(1, 9));
-    await api.patch(`/appointments/${done.id}/status`).send({ status: 'completed' });
+    await admin.patch(`/appointments/${done.id}/status`).send({ status: 'completed' });
 
-    const byDoctor = await api.get(`/appointments?doctorId=${doctor.id}`).expect(200);
+    const byDoctor = await admin.get(`/appointments?doctorId=${doctor.id}`).expect(200);
     expect(byDoctor.body.data).toHaveLength(2);
 
-    const completed = await api.get('/appointments?status=completed').expect(200);
+    const completed = await admin.get('/appointments?status=completed').expect(200);
     expect(completed.body.data).toHaveLength(1);
 
     const day1 = slot(1, 0).startsAt.slice(0, 10);
     const day2 = slot(2, 0).startsAt.slice(0, 10);
-    const inRange = await api.get(`/appointments?from=${day1}&to=${day2}`).expect(200);
+    const inRange = await admin.get(`/appointments?from=${day1}&to=${day2}`).expect(200);
     expect(inRange.body.data).toHaveLength(2);
   });
 });

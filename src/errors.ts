@@ -29,3 +29,15 @@ export class UnprocessableError extends AppError {
     super(422, 'UNPROCESSABLE', message);
   }
 }
+
+export class UnauthorizedError extends AppError {
+  constructor(message = 'Authentication required') {
+    super(401, 'UNAUTHORIZED', message);
+  }
+}
+
+export class ForbiddenError extends AppError {
+  constructor(message = 'You do not have access to this resource') {
+    super(403, 'FORBIDDEN', message);
+  }
+}
